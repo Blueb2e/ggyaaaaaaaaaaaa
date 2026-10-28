@@ -62,6 +62,7 @@ const $=id=>document.getElementById(id);
 let mode='original', sentences=[], idx=0, startedAt=null, typedTotal=0, correctTotal=0;
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 function splitSentences(text){
+ text = text.replace(/[ \t　]+/g, ' ');
  return text.replace(/\r/g,'').split(/\n+/).map(s=>s.trim()).filter(Boolean).flatMap(p=>{
   const parts=p.match(/[^.!?。！？]+[.!?。！？]?/g);
   return (parts||[p]).map(s=>s.trim()).filter(s=>s.length>0);
