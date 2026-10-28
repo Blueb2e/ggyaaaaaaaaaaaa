@@ -1,1 +1,127 @@
 
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>학습 타자실</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#202637;--muted:#687187;--accent:#4f65dc;--line:#e3e7f0;--good:#16845b;--bad:#d34c56}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Noto Sans KR",sans-serif}
+main{max-width:1050px;margin:auto;padding:28px 18px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}
+h1{font-size:27px;margin:0;letter-spacing:-.8px}.sub{color:var(--muted);margin-top:5px}.tag{background:#e9edff;color:#354bc2;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 5px 20px #24335b08}
+h2{font-size:17px;margin:0 0 14px}.muted{color:var(--muted);font-size:13px}.drop{border:1.5px dashed #bac4df;border-radius:14px;padding:22px;text-align:center;background:#fafbff}
+input[type=file]{max-width:100%;margin-top:12px}textarea{width:100%;min-height:155px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.7 inherit;color:var(--ink);background:#fff}
+button,select{font:inherit;border-radius:10px;border:1px solid var(--line);padding:10px 13px;background:white;color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.modes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.mode{flex:1;min-width:140px;text-align:left}.mode.active{border-color:var(--accent);background:#eef0ff;color:#3449c2}
+.status{margin-top:10px;color:var(--muted);font-size:13px;min-height:20px}.full{grid-column:1/-1}.practice-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.metrics{display:flex;gap:10px;flex-wrap:wrap}.metric{background:#f5f6fb;padding:9px 13px;border-radius:11px;min-width:90px}.metric strong{display:block;font-size:19px}.metric span{font-size:12px;color:var(--muted)}
+.target{padding:18px;border-radius:13px;background:#f7f8fc;border:1px solid var(--line);font-size:18px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;margin:14px 0}
+.target .correct{color:var(--good)}.target .wrong{background:#ffe1e3;color:#b51f2b;border-radius:3px}.target .pending{color:#8b92a4}
+#typing{min-height:120px;font-size:17px;line-height:1.8} .progress{height:7px;background:#edf0f7;border-radius:9px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:var(--accent);transition:width .12s}
+.notice{background:#fff8e6;border:1px solid #f2dfaa;border-radius:12px;padding:11px 13px;color:#715819;font-size:12px;margin-top:12px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.full{grid-column:auto}.top{align-items:flex-start;flex-direction:column}h1{font-size:24px}}
+</style>
+</head>
+<body><main>
+<header class="top"><div><h1>학습 타자실</h1><div class="sub">학습 자료를 문장으로 바꾸고, 타자연습으로 복습하세요.</div></div><span class="tag">브라우저에서 실행</span></header>
+<div class="layout">
+<section class="card">
+<h2>1. 학습 자료 입력</h2>
+<div class="drop">PDF · 이미지 · 텍스트 파일을 선택하세요<br><span class="muted">스캔한 PDF와 사진은 OCR로 글자를 읽습니다.</span><br><input id="file" type="file" accept=".pdf,.txt,.md,.csv,.png,.jpg,.jpeg,.webp"></div>
+<div class="status" id="fileStatus">파일 없이 텍스트를 직접 붙여넣어도 됩니다.</div>
+<label for="source" class="muted">추출된 텍스트 / 직접 입력</label>
+<textarea id="source" placeholder="여기에 학습지 내용을 붙여넣으세요."></textarea>
+<div class="actions"><button id="extractBtn" class="primary">텍스트 추출</button><button id="clearBtn">비우기</button></div>
+</section>
+<section class="card">
+<h2>2. 타자연습 문장 만들기</h2>
+<div class="modes"><button class="mode active" data-mode="original">원문 그대로</button><button class="mode" data-mode="summary">시험 대비 요약</button></div>
+<p class="muted" id="modeHelp">원문의 문단과 문장을 유지해 연습 자료로 사용합니다.</p>
+<label class="muted" for="summaryCount">요약 분량</label>
+<select id="summaryCount"><option value="5">핵심 5문장</option><option value="8" selected>핵심 8문장</option><option value="12">핵심 12문장</option></select>
+<div class="actions"><button id="makeBtn" class="primary">연습 문장 만들기</button><button id="startBtn">타자연습으로 이동</button></div>
+<div class="status" id="makeStatus">요약 모드는 중요해 보이는 문장을 고르는 기본 요약 방식입니다.</div>
+<div class="notice">현재 버전의 요약은 별도 AI 모델을 호출하지 않는 간단한 문장 선별 방식입니다. AI 요약을 연결하려면 안전한 서버/API 설정이 추가로 필요합니다.</div>
+</section>
+<section class="card full" id="practiceCard">
+<div class="practice-head"><div><h2 style="margin-bottom:3px">3. 타자연습</h2><div class="muted">아래 문장을 보고 입력하세요. 문장 단위로 진행됩니다.</div></div>
+<div class="metrics"><div class="metric"><strong id="accuracy">100%</strong><span>정확도</span></div><div class="metric"><strong id="speed">0</strong><span>타수(분당)</span></div><div class="metric"><strong id="count">0 / 0</strong><span>문장</span></div></div></div>
+<div class="target" id="target">먼저 학습 자료를 입력한 뒤 ‘연습 문장 만들기’를 누르세요.</div>
+<textarea id="typing" placeholder="위 문장을 여기에 그대로 입력하세요." disabled></textarea>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="actions"><button id="prevBtn">이전 문장</button><button id="nextBtn" class="primary">다음 문장</button><button id="resetBtn">입력 초기화</button><button id="copyBtn">연습 문장 복사</button></div>
+<div class="status" id="practiceStatus">입력을 시작하면 정확도와 타수가 계산됩니다.</div>
+</section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let mode='original', sentences=[], idx=0, startedAt=null, typedTotal=0, correctTotal=0;
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function splitSentences(text){
+ return text.replace(/\r/g,'').split(/\n+/).map(s=>s.trim()).filter(Boolean).flatMap(p=>{
+  const parts=p.match(/[^.!?。！？]+[.!?。！？]?/g);
+  return (parts||[p]).map(s=>s.trim()).filter(s=>s.length>0);
+ });
+}
+function summarize(text,n){
+ const all=splitSentences(text);
+ if(all.length<=n)return all;
+ const keywords=['정의','원리','공식','따라서','결과','원인','특징','장점','단점','한계','중요','의미','증가','감소','반응','에너지','법칙','조건','비교','결론','핵심','즉','반면','때문'];
+ const scored=all.map((s,i)=>({s,i,score:(keywords.reduce((a,k)=>a+(s.includes(k)?2:0),0))+(s.length>=20&&s.length<=110?1:0)+(i===0?0.5:0)}));
+ return scored.sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,n).sort((a,b)=>a.i-b.i).map(x=>x.s);
+}
+function setStatus(id,msg){$(id).textContent=msg}
+async function readFile(file){
+ setStatus('fileStatus','파일을 읽는 중입니다...');
+ try{
+  let text='';
+  if(file.name.toLowerCase().endsWith('.txt')||/\.(md|csv)$/i.test(file.name)){text=await file.text();}
+  else if(/\.pdf$/i.test(file.name)){
+   if(!window.pdfjsLib)throw Error('PDF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+   const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+   for(let p=1;p<=pdf.numPages;p++){setStatus('fileStatus',`PDF 읽는 중... ${p}/${pdf.numPages}쪽`);const page=await pdf.getPage(p);const c=await page.getTextContent();text+=c.items.map(x=>x.str).join(' ')+'\n';}
+   if(!text.trim())setStatus('fileStatus','PDF에서 글자가 거의 추출되지 않았습니다. 스캔본이라면 페이지를 이미지로 저장해 올려주세요.');
+  } else {
+   if(!window.Tesseract)throw Error('OCR 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+   const result=await Tesseract.recognize(file,'kor+eng',{logger:m=>{if(m.status==='recognizing text')setStatus('fileStatus',`이미지 글자 인식 중... ${Math.round((m.progress||0)*100)}%`);}});
+   text=result.data.text;
+  }
+  $('source').value=text;setStatus('fileStatus',`읽기 완료 · ${text.length.toLocaleString()}자`);
+ }catch(e){setStatus('fileStatus','읽기 실패: '+e.message);}
+}
+$('file').addEventListener('change',e=>{if(e.target.files[0])readFile(e.target.files[0]);});
+$('extractBtn').onclick=()=>{const f=$('file').files[0];if(f)readFile(f);else setStatus('fileStatus',$('source').value.trim()?`입력된 텍스트 ${$('source').value.trim().length}자`:'파일을 선택하거나 텍스트를 붙여넣으세요.');};
+$('clearBtn').onclick=()=>{$('source').value='';$('file').value='';setStatus('fileStatus','비웠습니다.');};
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x===b));$('summaryCount').disabled=mode!=='summary';$('modeHelp').textContent=mode==='original'?'원문의 문단과 문장을 유지해 연습 자료로 사용합니다.':'중요 키워드가 포함된 문장을 우선 선택하는 기본 요약 방식입니다.';});
+$('summaryCount').disabled=true;
+$('makeBtn').onclick=()=>{
+ const text=$('source').value.trim();if(!text){setStatus('makeStatus','먼저 자료를 입력하거나 파일을 읽어주세요.');return;}
+ sentences=mode==='summary'?summarize(text,Number($('summaryCount').value)):splitSentences(text);
+ if(!sentences.length){setStatus('makeStatus','연습할 문장을 찾지 못했습니다.');return;}
+ idx=0;startedAt=null;typedTotal=0;correctTotal=0;$('typing').disabled=false;$('typing').value='';render();setStatus('makeStatus',`${sentences.length}개 문장을 만들었습니다.`);
+};
+function render(){
+ if(!sentences.length)return;
+ const target=sentences[idx], typed=$('typing').value;
+ $('target').innerHTML=[...target].map((ch,i)=>{let cls='pending';if(i<typed.length)cls=typed[i]===ch?'correct':'wrong';return `<span class="${cls}">${escapeHtml(ch)}</span>`;}).join('');
+ $('count').textContent=`${idx+1} / ${sentences.length}`;
+ $('bar').style.width=`${((idx+(typed===target?1:Math.min(typed.length/Math.max(target.length,1),.99)))/sentences.length*100)}%`;
+ const acc=typed.length?Math.round([...typed].filter((c,i)=>c===target[i]).length/typed.length*100):100;
+ $('accuracy').textContent=acc+'%';
+ const elapsed=startedAt?(Date.now()-startedAt)/60000:0;$('speed').textContent=elapsed>0?Math.round(typedTotal/elapsed):0;
+ if(typed===target){$('practiceStatus').textContent='정확합니다! 다음 문장으로 넘어가세요.';}else{$('practiceStatus').textContent=typed.length?`입력 ${typed.length}자 · 목표 ${target.length}자`:'문장 입력을 시작하세요.';}
+}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+$('typing').addEventListener('input',()=>{if(!startedAt)startedAt=Date.now();typedTotal=$('typing').value.length;render();});
+$('nextBtn').onclick=()=>{if(idx<sentences.length-1){idx++;$('typing').value='';render();}else setStatus('practiceStatus','마지막 문장입니다. 연습이 끝났습니다.');};
+$('prevBtn').onclick=()=>{if(idx>0){idx--;$('typing').value='';render();}};
+$('resetBtn').onclick=()=>{$('typing').value='';render();$('typing').focus();};
+$('startBtn').onclick=()=>{$('practiceCard').scrollIntoView({behavior:'smooth'});$('typing').focus();};
+$('copyBtn').onclick=async()=>{if(!sentences.length)return;try{await navigator.clipboard.writeText(sentences.join('\n'));setStatus('practiceStatus','연습 문장을 복사했습니다.');}catch(e){setStatus('practiceStatus','복사 기능은 HTTPS 또는 localhost에서 사용할 수 있습니다.');}};
+</script></body></html>
